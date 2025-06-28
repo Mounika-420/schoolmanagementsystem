@@ -1,0 +1,1056 @@
+import java.io.*;
+import java.util.*;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
+
+public class EnhancedSchoolManagementSystem {
+    private static Scanner scanner = new Scanner(System.in);
+    private static List<Student> students = new ArrayList<>();
+    private static List<Teacher> teachers = new ArrayList<>();
+    private static List<Course> courses = new ArrayList<>();
+    private static List<Classroom> classrooms = new ArrayList<>();
+    private static List<Attendance> attendanceRecords = new ArrayList<>();
+    private static Map<Integer, Map<Integer, Double>> grades = new HashMap<>();
+    private static Map<Integer, Set<Integer>> enrollments = new HashMap<>(); // CourseID -> StudentIDs
+    private static final String DATA_FILE = "school_data.ser";
+    
+    // Date formatter for attendance
+    private static final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    public static void main(String[] args) {
+        System.out.println("Welcome to Enhanced School Management System");
+        
+        // Load data from file if exists
+        loadData();
+        
+        boolean running = true;
+        while (running) {
+            displayMainMenu();
+            int choice = getIntInput("Enter your choice: ");
+            
+            switch (choice) {
+                case 1:
+                    manageStudents();
+                    break;
+                case 2:
+                    manageTeachers();
+                    break;
+                case 3:
+                    manageCourses();
+                    break;
+                case 4:
+                    manageClassrooms();
+                    break;
+                case 5:
+                    manageGrades();
+                    break;
+                case 6:
+                    manageAttendance();
+                    break;
+                case 7:
+                    manageEnrollments();
+                    break;
+                case 8:
+                    generateReports();
+                    break;
+                case 9:
+                    systemSettings();
+                    break;
+                case 10:
+                    running = false;
+                    saveData();
+                    System.out.println("Data saved. Exiting system. Goodbye!");
+                    break;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+            }
+        }
+    }
+    
+    // ========== Data Persistence Methods ==========
+    @SuppressWarnings("unchecked")
+    private static void loadData() {
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(DATA_FILE))) {
+            students = (List<Student>) ois.readObject();
+            teachers = (List<Teacher>) ois.readObject();
+            courses = (List<Course>) ois.readObject();
+            classrooms = (List<Classroom>) ois.readObject();
+            attendanceRecords = (List<Attendance>) ois.readObject();
+            grades = (Map<Integer, Map<Integer, Double>>) ois.readObject();
+            enrollments = (Map<Integer, Set<Integer>>) ois.readObject();
+            System.out.println("Data loaded successfully.");
+        } catch (FileNotFoundException e) {
+            System.out.println("No existing data file found. Starting with empty system.");
+            initializeSampleData();
+        } catch (IOException | ClassNotFoundException e) {
+            System.out.println("Error loading data: " + e.getMessage());
+            initializeSampleData();
+        }
+    }
+    
+    private static void saveData() {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(DATA_FILE))) {
+            oos.writeObject(students);
+            oos.writeObject(teachers);
+            oos.writeObject(courses);
+            oos.writeObject(classrooms);
+            oos.writeObject(attendanceRecords);
+            oos.writeObject(grades);
+            oos.writeObject(enrollments);
+            System.out.println("Data saved successfully.");
+        } catch (IOException e) {
+            System.out.println("Error saving data: " + e.getMessage());
+        }
+    }
+    
+    // ========== Utility Methods ==========
+    private static int getIntInput(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            try {
+                int value = scanner.nextInt();
+                scanner.nextLine(); // consume newline
+                return value;
+            } catch (InputMismatchException e) {
+                System.out.println("Invalid input. Please enter a number.");
+                scanner.nextLine(); // clear invalid input
+            }
+        }
+    }
+    
+    private static double getDoubleInput(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            try {
+                double value = scanner.nextDouble();
+                scanner.nextLine(); // consume newline
+                return value;
+            } catch (InputMismatchException e) {
+                System.out.println("Invalid input. Please enter a number.");
+                scanner.nextLine(); // clear invalid input
+            }
+        }
+    }
+    
+    private static String getStringInput(String prompt) {
+        System.out.print(prompt);
+        return scanner.nextLine();
+    }
+    
+    private static LocalDate getDateInput(String prompt) {
+        while (true) {
+            System.out.print(prompt + " (YYYY-MM-DD): ");
+            String dateStr = scanner.nextLine();
+            try {
+                return LocalDate.parse(dateStr, dateFormatter);
+            } catch (Exception e) {
+                System.out.println("Invalid date format. Please use YYYY-MM-DD.");
+            }
+        }
+    }
+    
+    // ========== Main Menu ==========
+    private static void displayMainMenu() {
+        System.out.println("\n===== MAIN MENU =====");
+        System.out.println("1. Manage Students");
+        System.out.println("2. Manage Teachers");
+        System.out.println("3. Manage Courses");
+        System.out.println("4. Manage Classrooms");
+        System.out.println("5. Manage Grades");
+        System.out.println("6. Manage Attendance");
+        System.out.println("7. Manage Enrollments");
+        System.out.println("8. Generate Reports");
+        System.out.println("9. System Settings");
+        System.out.println("10. Exit");
+    }
+    
+    // ========== Student Management ==========
+    private static void manageStudents() {
+        while (true) {
+            System.out.println("\n===== STUDENT MANAGEMENT =====");
+            System.out.println("1. Add New Student");
+            System.out.println("2. View All Students");
+            System.out.println("3. Search Student");
+            System.out.println("4. Update Student Information");
+            System.out.println("5. Delete Student");
+            System.out.println("6. View Student Details");
+            System.out.println("7. Back to Main Menu");
+            int choice = getIntInput("Enter your choice: ");
+            
+            switch (choice) {
+                case 1:
+                    addStudent();
+                    break;
+                case 2:
+                    viewAllStudents();
+                    break;
+                case 3:
+                    searchStudents();
+                    break;
+                case 4:
+                    updateStudent();
+                    break;
+                case 5:
+                    deleteStudent();
+                    break;
+                case 6:
+                    viewStudentDetails();
+                    break;
+                case 7:
+                    return;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+            }
+        }
+    }
+    
+    private static void addStudent() {
+        System.out.println("\n--- Add New Student ---");
+        int id = getIntInput("Enter Student ID: ");
+        if (findStudentById(id) != null) {
+            System.out.println("Student with this ID already exists.");
+            return;
+        }
+        
+        String name = getStringInput("Enter Student Name: ");
+        int age = getIntInput("Enter Student Age: ");
+        int gradeLevel = getIntInput("Enter Student Grade Level: ");
+        String address = getStringInput("Enter Student Address: ");
+        String phoneNumber = getStringInput("Enter Student Phone Number: ");
+        String email = getStringInput("Enter Student Email: ");
+        String parentName = getStringInput("Enter Parent/Guardian Name: ");
+        String parentPhone = getStringInput("Enter Parent/Guardian Phone: ");
+        
+        Student student = new Student(id, name, age, gradeLevel, address, phoneNumber, 
+                                    email, parentName, parentPhone);
+        students.add(student);
+        System.out.println("Student added successfully!");
+    }
+    
+    private static void viewAllStudents() {
+        System.out.println("\n--- All Students ---");
+        if (students.isEmpty()) {
+            System.out.println("No students found.");
+            return;
+        }
+        
+        System.out.printf("%-8s %-20s %-5s %-8s %-15s %-12s%n", 
+            "ID", "Name", "Age", "Grade", "Phone", "Email");
+        for (Student student : students) {
+            System.out.printf("%-8d %-20s %-5d %-8d %-15s %-12s%n",
+                student.getId(), student.getName(), student.getAge(),
+                student.getGradeLevel(), student.getPhoneNumber(), 
+                student.getEmail());
+        }
+    }
+    
+    private static void searchStudents() {
+        System.out.println("\n--- Search Students ---");
+        System.out.println("1. Search by ID");
+        System.out.println("2. Search by Name");
+        System.out.println("3. Search by Grade Level");
+        int choice = getIntInput("Enter search option: ");
+        
+        List<Student> results = new ArrayList<>();
+        switch (choice) {
+            case 1:
+                int id = getIntInput("Enter Student ID: ");
+                Student student = findStudentById(id);
+                if (student != null) results.add(student);
+                break;
+            case 2:
+                String name = getStringInput("Enter Name (or part of name): ");
+                for (Student s : students) {
+                    if (s.getName().toLowerCase().contains(name.toLowerCase())) {
+                        results.add(s);
+                    }
+                }
+                break;
+            case 3:
+                int grade = getIntInput("Enter Grade Level: ");
+                for (Student s : students) {
+                    if (s.getGradeLevel() == grade) {
+                        results.add(s);
+                    }
+                }
+                break;
+            default:
+                System.out.println("Invalid search option.");
+                return;
+        }
+        
+        if (results.isEmpty()) {
+            System.out.println("No matching students found.");
+        } else {
+            System.out.println("\nSearch Results:");
+            System.out.printf("%-8s %-20s %-5s %-8s%n", "ID", "Name", "Age", "Grade");
+            for (Student s : results) {
+                System.out.printf("%-8d %-20s %-5d %-8d%n",
+                    s.getId(), s.getName(), s.getAge(), s.getGradeLevel());
+            }
+        }
+    }
+    
+    private static void updateStudent() {
+        int id = getIntInput("\nEnter Student ID to update: ");
+        Student student = findStudentById(id);
+        if (student == null) {
+            System.out.println("Student not found with ID: " + id);
+            return;
+        }
+        
+        System.out.println("\nCurrent Student Information:");
+        System.out.println(student.getDetails());
+        
+        System.out.println("\nEnter new information (leave blank to keep current):");
+        
+        String name = getStringInput("Name: ");
+        if (!name.isEmpty()) student.setName(name);
+        
+        String ageStr = getStringInput("Age: ");
+        if (!ageStr.isEmpty()) student.setAge(Integer.parseInt(ageStr));
+        
+        String gradeStr = getStringInput("Grade Level: ");
+        if (!gradeStr.isEmpty()) student.setGradeLevel(Integer.parseInt(gradeStr));
+        
+        String address = getStringInput("Address: ");
+        if (!address.isEmpty()) student.setAddress(address);
+        
+        String phone = getStringInput("Phone: ");
+        if (!phone.isEmpty()) student.setPhoneNumber(phone);
+        
+        String email = getStringInput("Email: ");
+        if (!email.isEmpty()) student.setEmail(email);
+        
+        String parentName = getStringInput("Parent/Guardian Name: ");
+        if (!parentName.isEmpty()) student.setParentName(parentName);
+        
+        String parentPhone = getStringInput("Parent/Guardian Phone: ");
+        if (!parentPhone.isEmpty()) student.setParentPhone(parentPhone);
+        
+        System.out.println("Student information updated successfully!");
+    }
+    
+    private static void deleteStudent() {
+        int id = getIntInput("\nEnter Student ID to delete: ");
+        Student student = findStudentById(id);
+        if (student == null) {
+            System.out.println("Student not found with ID: " + id);
+            return;
+        }
+        
+        // Confirm deletion
+        String confirm = getStringInput("Are you sure you want to delete " + student.getName() + "? (yes/no): ");
+        if (!confirm.equalsIgnoreCase("yes")) {
+            System.out.println("Deletion cancelled.");
+            return;
+        }
+        
+        students.remove(student);
+        grades.remove(id); // Remove all grades for this student
+        
+        // Remove from enrollments
+        for (Set<Integer> enrolledStudents : enrollments.values()) {
+            enrolledStudents.remove(id);
+        }
+        
+        // Remove attendance records
+        attendanceRecords.removeIf(att -> att.getStudentId() == id);
+        
+        System.out.println("Student deleted successfully!");
+    }
+    
+    private static void viewStudentDetails() {
+        int id = getIntInput("\nEnter Student ID: ");
+        Student student = findStudentById(id);
+        if (student == null) {
+            System.out.println("Student not found with ID: " + id);
+            return;
+        }
+        
+        System.out.println("\n--- Student Details ---");
+        System.out.println(student.getDetails());
+        
+        // Show enrolled courses
+        System.out.println("\nEnrolled Courses:");
+        boolean enrolled = false;
+        for (Map.Entry<Integer, Set<Integer>> entry : enrollments.entrySet()) {
+            if (entry.getValue().contains(id)) {
+                Course course = findCourseById(entry.getKey());
+                if (course != null) {
+                    System.out.println("- " + course.getName() + " (ID: " + course.getId() + ")");
+                    enrolled = true;
+                }
+            }
+        }
+        if (!enrolled) System.out.println("Not enrolled in any courses.");
+        
+        // Show grades
+        Map<Integer, Double> studentGrades = grades.get(id);
+        if (studentGrades != null && !studentGrades.isEmpty()) {
+            System.out.println("\nGrades:");
+            System.out.printf("%-10s %-20s %-10s%n", "Course ID", "Course Name", "Grade");
+            for (Map.Entry<Integer, Double> entry : studentGrades.entrySet()) {
+                Course course = findCourseById(entry.getKey());
+                if (course != null) {
+                    System.out.printf("%-10d %-20s %-10.2f%n", 
+                        course.getId(), course.getName(), entry.getValue());
+                }
+            }
+            
+            // Calculate GPA
+            double totalPoints = 0;
+            int totalCredits = 0;
+            for (Map.Entry<Integer, Double> entry : studentGrades.entrySet()) {
+                Course course = findCourseById(entry.getKey());
+                if (course != null) {
+                    totalPoints += entry.getValue() * course.getCreditHours();
+                    totalCredits += course.getCreditHours();
+                }
+            }
+            
+            if (totalCredits > 0) {
+                double gpa = totalPoints / (totalCredits * 25); // Assuming 100 = 4.0
+                System.out.printf("\nCurrent GPA: %.2f%n", gpa);
+            }
+        } else {
+            System.out.println("\nNo grades recorded.");
+        }
+        
+        // Show attendance summary
+        System.out.println("\nAttendance Summary:");
+        long totalDays = attendanceRecords.stream()
+            .filter(att -> att.getStudentId() == id)
+            .count();
+        
+        long presentDays = attendanceRecords.stream()
+            .filter(att -> att.getStudentId() == id && att.isPresent())
+            .count();
+        
+        if (totalDays > 0) {
+            double attendanceRate = (double) presentDays / totalDays * 100;
+            System.out.printf("Present: %d/%d days (%.1f%%)%n", presentDays, totalDays, attendanceRate);
+        } else {
+            System.out.println("No attendance records.");
+        }
+    }
+    
+    private static Student findStudentById(int id) {
+        return students.stream()
+            .filter(s -> s.getId() == id)
+            .findFirst()
+            .orElse(null);
+    }
+    
+    // ========== Teacher Management ==========
+    private static void manageTeachers() {
+        while (true) {
+            System.out.println("\n===== TEACHER MANAGEMENT =====");
+            System.out.println("1. Add New Teacher");
+            System.out.println("2. View All Teachers");
+            System.out.println("3. Search Teacher");
+            System.out.println("4. Update Teacher Information");
+            System.out.println("5. Delete Teacher");
+            System.out.println("6. View Teacher Details");
+            System.out.println("7. Back to Main Menu");
+            int choice = getIntInput("Enter your choice: ");
+            
+            switch (choice) {
+                case 1:
+                    addTeacher();
+                    break;
+                case 2:
+                    viewAllTeachers();
+                    break;
+                case 3:
+                    searchTeachers();
+                    break;
+                case 4:
+                    updateTeacher();
+                    break;
+                case 5:
+                    deleteTeacher();
+                    break;
+                case 6:
+                    viewTeacherDetails();
+                    break;
+                case 7:
+                    return;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+            }
+        }
+    }
+    
+    private static void addTeacher() {
+        System.out.println("\n--- Add New Teacher ---");
+        int id = getIntInput("Enter Teacher ID: ");
+        if (findTeacherById(id) != null) {
+            System.out.println("Teacher with this ID already exists.");
+            return;
+        }
+        
+        String name = getStringInput("Enter Teacher Name: ");
+        int age = getIntInput("Enter Teacher Age: ");
+        String department = getStringInput("Enter Department: ");
+        double salary = getDoubleInput("Enter Salary: ");
+        String email = getStringInput("Enter Email: ");
+        String phone = getStringInput("Enter Phone: ");
+        String qualification = getStringInput("Enter Qualification: ");
+        LocalDate joinDate = getDateInput("Enter Join Date: ");
+        
+        Teacher teacher = new Teacher(id, name, age, department, salary, email, 
+                                     phone, qualification, joinDate);
+        teachers.add(teacher);
+        System.out.println("Teacher added successfully!");
+    }
+    
+    private static void viewAllTeachers() {
+        System.out.println("\n--- All Teachers ---");
+        if (teachers.isEmpty()) {
+            System.out.println("No teachers found.");
+            return;
+        }
+        
+        System.out.printf("%-8s %-20s %-15s %-10s %-15s%n", 
+            "ID", "Name", "Department", "Salary", "Email");
+        for (Teacher teacher : teachers) {
+            System.out.printf("%-8d %-20s %-15s %-10.2f %-15s%n",
+                teacher.getId(), teacher.getName(), teacher.getDepartment(),
+                teacher.getSalary(), teacher.getEmail());
+        }
+    }
+    
+    private static void searchTeachers() {
+        System.out.println("\n--- Search Teachers ---");
+        System.out.println("1. Search by ID");
+        System.out.println("2. Search by Name");
+        System.out.println("3. Search by Department");
+        int choice = getIntInput("Enter search option: ");
+        
+        List<Teacher> results = new ArrayList<>();
+        switch (choice) {
+            case 1:
+                int id = getIntInput("Enter Teacher ID: ");
+                Teacher teacher = findTeacherById(id);
+                if (teacher != null) results.add(teacher);
+                break;
+            case 2:
+                String name = getStringInput("Enter Name (or part of name): ");
+                for (Teacher t : teachers) {
+                    if (t.getName().toLowerCase().contains(name.toLowerCase())) {
+                        results.add(t);
+                    }
+                }
+                break;
+            case 3:
+                String dept = getStringInput("Enter Department: ");
+                for (Teacher t : teachers) {
+                    if (t.getDepartment().equalsIgnoreCase(dept)) {
+                        results.add(t);
+                    }
+                }
+                break;
+            default:
+                System.out.println("Invalid search option.");
+                return;
+        }
+        
+        if (results.isEmpty()) {
+            System.out.println("No matching teachers found.");
+        } else {
+            System.out.println("\nSearch Results:");
+            System.out.printf("%-8s %-20s %-15s %-10s%n", "ID", "Name", "Department", "Salary");
+            for (Teacher t : results) {
+                System.out.printf("%-8d %-20s %-15s %-10.2f%n",
+                    t.getId(), t.getName(), t.getDepartment(), t.getSalary());
+            }
+        }
+    }
+    
+    private static void updateTeacher() {
+        int id = getIntInput("\nEnter Teacher ID to update: ");
+        Teacher teacher = findTeacherById(id);
+        if (teacher == null) {
+            System.out.println("Teacher not found with ID: " + id);
+            return;
+        }
+        
+        System.out.println("\nCurrent Teacher Information:");
+        System.out.println(teacher.getDetails());
+        
+        System.out.println("\nEnter new information (leave blank to keep current):");
+        
+        String name = getStringInput("Name: ");
+        if (!name.isEmpty()) teacher.setName(name);
+        
+        String ageStr = getStringInput("Age: ");
+        if (!ageStr.isEmpty()) teacher.setAge(Integer.parseInt(ageStr));
+        
+        String dept = getStringInput("Department: ");
+        if (!dept.isEmpty()) teacher.setDepartment(dept);
+        
+        String salaryStr = getStringInput("Salary: ");
+        if (!salaryStr.isEmpty()) teacher.setSalary(Double.parseDouble(salaryStr));
+        
+        String email = getStringInput("Email: ");
+        if (!email.isEmpty()) teacher.setEmail(email);
+        
+        String phone = getStringInput("Phone: ");
+        if (!phone.isEmpty()) teacher.setPhone(phone);
+        
+        String qual = getStringInput("Qualification: ");
+        if (!qual.isEmpty()) teacher.setQualification(qual);
+        
+        String dateStr = getStringInput("Join Date (YYYY-MM-DD): ");
+        if (!dateStr.isEmpty()) {
+            try {
+                teacher.setJoinDate(LocalDate.parse(dateStr, dateFormatter));
+            } catch (Exception e) {
+                System.out.println("Invalid date format. Date not updated.");
+            }
+        }
+        
+        System.out.println("Teacher information updated successfully!");
+    }
+    
+    private static void deleteTeacher() {
+        int id = getIntInput("\nEnter Teacher ID to delete: ");
+        Teacher teacher = findTeacherById(id);
+        if (teacher == null) {
+            System.out.println("Teacher not found with ID: " + id);
+            return;
+        }
+        
+        // Confirm deletion
+        String confirm = getStringInput("Are you sure you want to delete " + teacher.getName() + "? (yes/no): ");
+        if (!confirm.equalsIgnoreCase("yes")) {
+            System.out.println("Deletion cancelled.");
+            return;
+        }
+        
+        // Check if teacher is assigned to any courses
+        boolean hasCourses = courses.stream()
+            .anyMatch(c -> c.getTeacherId() == id);
+        
+        if (hasCourses) {
+            System.out.println("This teacher is assigned to courses. Please reassign courses first.");
+            return;
+        }
+        
+        teachers.remove(teacher);
+        System.out.println("Teacher deleted successfully!");
+    }
+    
+    private static void viewTeacherDetails() {
+        int id = getIntInput("\nEnter Teacher ID: ");
+        Teacher teacher = findTeacherById(id);
+        if (teacher == null) {
+            System.out.println("Teacher not found with ID: " + id);
+            return;
+        }
+        
+        System.out.println("\n--- Teacher Details ---");
+        System.out.println(teacher.getDetails());
+        
+        // Show assigned courses
+        System.out.println("\nAssigned Courses:");
+        boolean hasCourses = false;
+        for (Course course : courses) {
+            if (course.getTeacherId() == id) {
+                System.out.println("- " + course.getName() + " (ID: " + course.getId() + ")");
+                hasCourses = true;
+            }
+        }
+        if (!hasCourses) System.out.println("No assigned courses.");
+    }
+    
+    private static Teacher findTeacherById(int id) {
+        return teachers.stream()
+            .filter(t -> t.getId() == id)
+            .findFirst()
+            .orElse(null);
+    }
+    
+    // ========== Course Management ==========
+    private static void manageCourses() {
+        while (true) {
+            System.out.println("\n===== COURSE MANAGEMENT =====");
+            System.out.println("1. Add New Course");
+            System.out.println("2. View All Courses");
+            System.out.println("3. Search Course");
+            System.out.println("4. Update Course Information");
+            System.out.println("5. Delete Course");
+            System.out.println("6. View Course Details");
+            System.out.println("7. Back to Main Menu");
+            int choice = getIntInput("Enter your choice: ");
+            
+            switch (choice) {
+                case 1:
+                    addCourse();
+                    break;
+                case 2:
+                    viewAllCourses();
+                    break;
+                case 3:
+                    searchCourses();
+                    break;
+                case 4:
+                    updateCourse();
+                    break;
+                case 5:
+                    deleteCourse();
+                    break;
+                case 6:
+                    viewCourseDetails();
+                    break;
+                case 7:
+                    return;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+            }
+        }
+    }
+    
+    private static void addCourse() {
+        System.out.println("\n--- Add New Course ---");
+        int id = getIntInput("Enter Course ID: ");
+        if (findCourseById(id) != null) {
+            System.out.println("Course with this ID already exists.");
+            return;
+        }
+        
+        String name = getStringInput("Enter Course Name: ");
+        String description = getStringInput("Enter Course Description: ");
+        int creditHours = getIntInput("Enter Credit Hours: ");
+        
+        // Show available classrooms
+        viewAllClassrooms();
+        int classroomId = getIntInput("Enter Classroom ID: ");
+        Classroom classroom = findClassroomById(classroomId);
+        if (classroom == null) {
+            System.out.println("Invalid Classroom ID.");
+            return;
+        }
+        
+        String schedule = getStringInput("Enter Schedule (e.g., Mon/Wed 10:00-11:30): ");
+        int maxStudents = getIntInput("Enter Maximum Students: ");
+        
+        // Initially no teacher assigned (-1)
+        Course course = new Course(id, name, description, creditHours, classroomId, 
+                                 schedule, -1, maxStudents);
+        courses.add(course);
+        enrollments.put(id, new HashSet<>()); // Initialize empty enrollment set
+        System.out.println("Course added successfully!");
+    }
+    
+    private static void viewAllCourses() {
+        System.out.println("\n--- All Courses ---");
+        if (courses.isEmpty()) {
+            System.out.println("No courses found.");
+            return;
+        }
+        
+        System.out.printf("%-8s %-20s %-10s %-15s %-20s %-15s %-10s/%s%n", 
+            "ID", "Name", "Credits", "Classroom", "Schedule", "Teacher", "Enrolled", "Max");
+        for (Course course : courses) {
+            String classroomName = "Unknown";
+            Classroom classroom = findClassroomById(course.getClassroomId());
+            if (classroom != null) {
+                classroomName = classroom.getName();
+            }
+            
+            String teacherName = "None";
+            if (course.getTeacherId() != -1) {
+                Teacher teacher = findTeacherById(course.getTeacherId());
+                if (teacher != null) {
+                    teacherName = teacher.getName();
+                }
+            }
+            
+            int enrolled = enrollments.getOrDefault(course.getId(), new HashSet<>()).size();
+            
+            System.out.printf("%-8d %-20s %-10d %-15s %-20s %-15s %-10d/%d%n",
+                course.getId(), course.getName(), course.getCreditHours(),
+                classroomName, course.getSchedule(), teacherName, enrolled, course.getMaxStudents());
+        }
+    }
+    
+    private static void searchCourses() {
+        System.out.println("\n--- Search Courses ---");
+        System.out.println("1. Search by ID");
+        System.out.println("2. Search by Name");
+        System.out.println("3. Search by Teacher");
+        System.out.println("4. Search by Classroom");
+        int choice = getIntInput("Enter search option: ");
+        
+        List<Course> results = new ArrayList<>();
+        switch (choice) {
+            case 1:
+                int id = getIntInput("Enter Course ID: ");
+                Course course = findCourseById(id);
+                if (course != null) results.add(course);
+                break;
+            case 2:
+                String name = getStringInput("Enter Name (or part of name): ");
+                for (Course c : courses) {
+                    if (c.getName().toLowerCase().contains(name.toLowerCase())) {
+                        results.add(c);
+                    }
+                }
+                break;
+            case 3:
+                int teacherId = getIntInput("Enter Teacher ID: ");
+                for (Course c : courses) {
+                    if (c.getTeacherId() == teacherId) {
+                        results.add(c);
+                    }
+                }
+                break;
+            case 4:
+                int classroomId = getIntInput("Enter Classroom ID: ");
+                for (Course c : courses) {
+                    if (c.getClassroomId() == classroomId) {
+                        results.add(c);
+                    }
+                }
+                break;
+            default:
+                System.out.println("Invalid search option.");
+                return;
+        }
+        
+        if (results.isEmpty()) {
+            System.out.println("No matching courses found.");
+        } else {
+            System.out.println("\nSearch Results:");
+            System.out.printf("%-8s %-20s %-10s %-15s%n", "ID", "Name", "Credits", "Teacher");
+            for (Course c : results) {
+                String teacherName = "None";
+                if (c.getTeacherId() != -1) {
+                    Teacher teacher = findTeacherById(c.getTeacherId());
+                    if (teacher != null) {
+                        teacherName = teacher.getName();
+                    }
+                }
+                System.out.printf("%-8d %-20s %-10d %-15s%n",
+                    c.getId(), c.getName(), c.getCreditHours(), teacherName);
+            }
+        }
+    }
+    
+    private static void updateCourse() {
+        int id = getIntInput("\nEnter Course ID to update: ");
+        Course course = findCourseById(id);
+        if (course == null) {
+            System.out.println("Course not found with ID: " + id);
+            return;
+        }
+        
+        System.out.println("\nCurrent Course Information:");
+        System.out.println(course.getDetails());
+        
+        System.out.println("\nEnter new information (leave blank to keep current):");
+        
+        String name = getStringInput("Name: ");
+        if (!name.isEmpty()) course.setName(name);
+        
+        String desc = getStringInput("Description: ");
+        if (!desc.isEmpty()) course.setDescription(desc);
+        
+        String creditsStr = getStringInput("Credit Hours: ");
+        if (!creditsStr.isEmpty()) course.setCreditHours(Integer.parseInt(creditsStr));
+        
+        // Classroom update
+        String classroomStr = getStringInput("Classroom ID (enter to skip): ");
+        if (!classroomStr.isEmpty()) {
+            int classroomId = Integer.parseInt(classroomStr);
+            Classroom classroom = findClassroomById(classroomId);
+            if (classroom != null) {
+                course.setClassroomId(classroomId);
+            } else {
+                System.out.println("Invalid Classroom ID. Classroom not updated.");
+            }
+        }
+        
+        String schedule = getStringInput("Schedule: ");
+        if (!schedule.isEmpty()) course.setSchedule(schedule);
+        
+        String maxStr = getStringInput("Max Students: ");
+        if (!maxStr.isEmpty()) course.setMaxStudents(Integer.parseInt(maxStr));
+        
+        System.out.println("Course information updated successfully!");
+    }
+    
+    private static void deleteCourse() {
+        int id = getIntInput("\nEnter Course ID to delete: ");
+        Course course = findCourseById(id);
+        if (course == null) {
+            System.out.println("Course not found with ID: " + id);
+            return;
+        }
+        
+        // Confirm deletion
+        String confirm = getStringInput("Are you sure you want to delete " + course.getName() + "? (yes/no): ");
+        if (!confirm.equalsIgnoreCase("yes")) {
+            System.out.println("Deletion cancelled.");
+            return;
+        }
+        
+        // Remove all grades for this course
+        for (Map<Integer, Double> studentGrades : grades.values()) {
+            studentGrades.remove(id);
+        }
+        
+        // Remove attendance records for this course
+        attendanceRecords.removeIf(att -> att.getCourseId() == id);
+        
+        // Remove from enrollments
+        enrollments.remove(id);
+        
+        courses.remove(course);
+        System.out.println("Course deleted successfully!");
+    }
+    
+    private static void viewCourseDetails() {
+        int id = getIntInput("\nEnter Course ID: ");
+        Course course = findCourseById(id);
+        if (course == null) {
+            System.out.println("Course not found with ID: " + id);
+            return;
+        }
+        
+        System.out.println("\n--- Course Details ---");
+        System.out.println(course.getDetails());
+        
+        // Show teacher information
+        if (course.getTeacherId() != -1) {
+            Teacher teacher = findTeacherById(course.getTeacherId());
+            if (teacher != null) {
+                System.out.println("\nTeacher:");
+                System.out.println(teacher.getBasicInfo());
+            }
+        } else {
+            System.out.println("\nTeacher: None assigned");
+        }
+        
+        // Show classroom information
+        Classroom classroom = findClassroomById(course.getClassroomId());
+        if (classroom != null) {
+            System.out.println("\nClassroom:");
+            System.out.println(classroom.getDetails());
+        }
+        
+        // Show enrolled students
+        Set<Integer> enrolledStudents = enrollments.get(id);
+        if (enrolledStudents != null && !enrolledStudents.isEmpty()) {
+            System.out.println("\nEnrolled Students (" + enrolledStudents.size() + "/" + course.getMaxStudents() + "):");
+            System.out.printf("%-8s %-20s %-10s%n", "ID", "Name", "Grade");
+            
+            for (int studentId : enrolledStudents) {
+                Student student = findStudentById(studentId);
+                if (student != null) {
+                    Double grade = grades.getOrDefault(studentId, new HashMap<>()).get(id);
+                    String gradeStr = (grade != null) ? String.format("%.2f", grade) : "N/A";
+                    System.out.printf("%-8d %-20s %-10s%n", 
+                        student.getId(), student.getName(), gradeStr);
+                }
+            }
+            
+            // Calculate course average
+            double sum = 0;
+            int count = 0;
+            for (Map<Integer, Double> studentGrades : grades.values()) {
+                if (studentGrades.containsKey(id)) {
+                    sum += studentGrades.get(id);
+                    count++;
+                }
+            }
+            
+            if (count > 0) {
+                System.out.printf("\nCourse Average: %.2f%n", sum / count);
+            }
+        } else {
+            System.out.println("\nNo students enrolled in this course.");
+        }
+    }
+    
+    private static Course findCourseById(int id) {
+        return courses.stream()
+            .filter(c -> c.getId() == id)
+            .findFirst()
+            .orElse(null);
+    }
+    
+    // ========== Classroom Management ==========
+    private static void manageClassrooms() {
+        while (true) {
+            System.out.println("\n===== CLASSROOM MANAGEMENT =====");
+            System.out.println("1. Add New Classroom");
+            System.out.println("2. View All Classrooms");
+            System.out.println("3. Update Classroom Information");
+            System.out.println("4. Delete Classroom");
+            System.out.println("5. View Classroom Schedule");
+            System.out.println("6. Back to Main Menu");
+            int choice = getIntInput("Enter your choice: ");
+            
+            switch (choice) {
+                case 1:
+                    addClassroom();
+                    break;
+                case 2:
+                    viewAllClassrooms();
+                    break;
+                case 3:
+                    updateClassroom();
+                    break;
+                case 4:
+                    deleteClassroom();
+                    break;
+                case 5:
+                    viewClassroomSchedule();
+                    break;
+                case 6:
+                    return;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+            }
+        }
+    }
+    
+    private static void addClassroom() {
+        System.out.println("\n--- Add New Classroom ---");
+        int id = getIntInput("Enter Classroom ID: ");
+        if (findClassroomById(id) != null) {
+            System.out.println("Classroom with this ID already exists.");
+            return;
+        }
+        
+        String name = getStringInput("Enter Classroom Name: ");
+        int capacity = getIntInput("Enter Capacity: ");
+        String building = getStringInput("Enter Building: ");
+        String facilities = getStringInput("Enter Facilities (comma separated): ");
+        
+        Classroom classroom = new Classroom(id, name, capacity, building, facilities);
+        classrooms.add(classroom);
+        System.out.println("Classroom added successfully!");
+    }
+    
+    private static void viewAllClassrooms() {
+        System.out.println("\n--- All Classrooms ---");
+        if (classrooms.isEmpty()) {
+            System.out.println("No classrooms found.");
+            return;
+        }
+        
+        System.out.printf("%-8s %-15s %-10s %-15s %-30s%n", 
+            "ID", "Name", "Capacity", "Building", "Facilities");
+        for (Classroom classroom : classrooms) {
+            System.out.printf("%-8d %-15s %-10d %-15s %-30s%n",
+                classroom.getId(), classroom.getName(), classroom.getCapacity(),
+                classroom.getBuilding(), classroom.getFacilities());
+        }
+    }
+    
+    private static void updateClassroom() {
+        int id = getInt
